@@ -1,0 +1,18 @@
+[package]
+authors = ["Jorge Aparicio <jorge@japaric.io>"]
+edition = "2018"
+name = "linux-rt"
+publish = false
+version = "0.0.0-alpha.0"
+
+[dependencies]
+linux-rt-macros = { path = "macros" }
+linux-sys = { path = "../linux-sys" }
+sc = "0.2.2"
+
+[dev-dependencies]
+cty = "0.2.0"
+linux-io = { path = "../linux-io" }
+panic-halt = "0.2.0"
+panic-stderr = { path = "../panic-stderr" }
+ufmt = "0.1.0-beta.4"

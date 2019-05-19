@@ -1,0 +1,17 @@
+[package]
+authors = ["Jorge Aparicio <jorge@japaric.io>"]
+edition = "2018"
+name = "linux-rt-macros"
+publish = false
+version = "0.0.0-alpha.0"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "0.6.12"
+proc-macro2 = "0.4.30"
+
+[dependencies.syn]
+version = "0.15.34"
+features = ["full"]

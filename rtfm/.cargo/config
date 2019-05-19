@@ -1,0 +1,6 @@
+[target.x86_64-unknown-linux-gnu]
+runner = "rtfm-run"
+rustflags = [
+  "-C", "linker=rust-lld",
+  "-C", "link-arg=-no-pie",
+]

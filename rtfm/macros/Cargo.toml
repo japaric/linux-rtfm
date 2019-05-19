@@ -1,0 +1,17 @@
+[package]
+authors = ["Jorge Aparicio <jorge@japaric.io>"]
+edition = "2018"
+name = "linux-rtfm-macros"
+publish = false
+version = "0.0.0-alpha.0"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "0.4.30"
+quote = "0.6.12"
+
+[dependencies.syn]
+version = "0.15.34"
+features = ["extra-traits", "full"]

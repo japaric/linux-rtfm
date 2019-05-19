@@ -1,0 +1,19 @@
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+codegen-units = 1 # better optimizations
+lto = true # better optimizations
+panic = "abort"
+
+[workspace]
+members = [
+  "linux-io",
+  "linux-rt",
+  "linux-rt/macros",
+  "linux-sys",
+  "panic-exit",
+  "panic-stderr",
+  "rtfm",
+  "rtfm/macros",
+]

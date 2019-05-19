@@ -1,0 +1,11 @@
+[package]
+authors = ["Jorge Aparicio <jorge@japaric.io>"]
+edition = "2018"
+name = "linux-sys"
+publish = false
+version = "0.0.0-alpha.0"
+
+[dependencies]
+cty = "0.2.0"
+sc = "0.2.2"
+ufmt = "0.1.0-beta.4"

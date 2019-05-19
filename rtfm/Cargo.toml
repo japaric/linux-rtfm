@@ -1,0 +1,22 @@
+[package]
+authors = ["Jorge Aparicio <jorge@japaric.io>"]
+edition = "2018"
+name = "linux-rtfm"
+publish = false
+version = "0.0.0-alpha.0"
+
+[lib]
+name = "rtfm"
+
+[dependencies]
+cty = "0.2.0"
+heapless = { git = "https://github.com/japaric/heapless" }
+linux-io = { path = "../linux-io" }
+linux-rt = { path = "../linux-rt" }
+linux-rtfm-macros = { path = "macros" }
+linux-sys = { path = "../linux-sys" }
+ufmt = "0.1.0-beta.4"
+
+[dev-dependencies]
+panic-exit = { path = "../panic-exit" }
+panic-stderr = { path = "../panic-stderr" }

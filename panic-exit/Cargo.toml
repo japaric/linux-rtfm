@@ -1,0 +1,9 @@
+[package]
+authors = ["Jorge Aparicio <jorge@japaric.io>"]
+edition = "2018"
+name = "panic-exit"
+publish = false
+version = "0.0.0-alpha.0"
+
+[dependencies]
+linux-sys = { path = "../linux-sys" }
