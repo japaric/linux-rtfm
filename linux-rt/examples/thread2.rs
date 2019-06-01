@@ -10,6 +10,7 @@
 use linux_io::{Stderr, Stdout};
 use panic_stderr as _;
 use ufmt::uwriteln;
+use ufmt_utils::{consts, Ignore, LineBuffered};
 
 // `$ getconf PAGE_SIZE`
 const PAGE_SIZE: u64 = 4_096;
@@ -17,9 +18,9 @@ const STACK_SIZE: u64 = 4 * PAGE_SIZE;
 
 #[linux_rt::entry]
 fn main() {
-    unsafe {
-        let mut stdout = &Stdout::take_once().unwrap_or_else(|| panic!());
+    let mut stderr = LineBuffered::<_, consts::U100>::new(Ignore::new(Stderr));
 
+    unsafe {
         // schedule this thread on the first core
         linux_sys::sched_setaffinity(0, &[1 << 0, 0, 0, 0, 0, 0, 0, 0])
             .unwrap_or_else(|_| panic!());
@@ -63,7 +64,7 @@ fn main() {
             child,
         )
         .unwrap_or_else(|e| {
-            uwriteln!(&mut stdout, "{:?}", e).ok();
+            uwriteln!(&mut stderr, "{:?}", e).ok();
             panic!()
         });
 
@@ -78,35 +79,29 @@ fn main() {
 
         // this output will interleave with the output of the `child`
         for _ in 0..128 {
-            stdout.write(&[b'0']).ok();
+            Stdout.write(&[b'0']).ok();
         }
 
-        stdout.write(&[b'\n']).ok();
+        Stdout.write(&[b'\n']).ok();
     }
 }
 
 // code that the child thread will run
 extern "C" fn child() -> ! {
+    for _ in 0..128 {
+        Stderr.write(&[b'1']).ok();
+    }
+
+    Stderr.write(&[b'\n']).ok();
+
     unsafe {
-        Stdout::borrow_unchecked(|stdout| {
-            for _ in 0..128 {
-                stdout.write(&[b'1']).ok();
-            }
-
-            stdout.write(&[b'\n']).ok();
-        });
-
         // exit this thread
         linux_sys::exit(0);
     }
 }
 
 fn fatal(s: &str) -> ! {
-    unsafe {
-        Stderr::borrow_unchecked(|stderr| {
-            stderr.write_all(s.as_bytes()).ok();
-        });
+    Stderr.write(s.as_bytes()).ok();
 
-        linux_sys::exit_group(101)
-    }
+    linux_sys::exit_group(101)
 }

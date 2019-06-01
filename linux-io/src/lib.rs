@@ -6,43 +6,19 @@
 #![deny(warnings)]
 #![no_std]
 
-use core::{
-    slice,
-    sync::atomic::{AtomicBool, Ordering},
-};
+use core::slice;
 
 use cty::c_uint;
 use linux_sys::Error;
 
+pub mod process;
+pub mod time;
+
 /// *Unbuffered* standard output singleton
-pub struct Stdout {
-    _private: (),
-}
+pub struct Stdout;
 
 impl Stdout {
     const FILENO: c_uint = 1;
-
-    /// Creates an instance of this singleton
-    ///
-    /// This constructor only returns `Some` the *first* time it's called
-    pub fn take_once() -> Option<Self> {
-        static ONCE: AtomicBool = AtomicBool::new(false);
-
-        // NOTE(Ordering) we are dealing with a single core so this out to be OK for now
-        if ONCE
-            .compare_exchange_weak(false, true, Ordering::Relaxed, Ordering::Relaxed)
-            .is_ok()
-        {
-            Some(Stdout { _private: () })
-        } else {
-            None
-        }
-    }
-
-    /// Borrows the singleton without performing any synchronization
-    pub unsafe fn borrow_unchecked<R>(f: impl FnOnce(&Self) -> R) -> R {
-        f(&Stdout { _private: () })
-    }
 
     /// Write a buffer into this writer, returning how many bytes were written.
     pub fn write(&self, buf: &[u8]) -> Result<usize, Error> {
@@ -63,35 +39,19 @@ impl ufmt::uWrite for &'_ Stdout {
     }
 }
 
-/// *Unbuffered* standard error singleton
-pub struct Stderr {
-    _private: (),
+impl ufmt::uWrite for Stdout {
+    type Error = Error;
+
+    fn write_str(&mut self, s: &str) -> Result<(), Error> {
+        self.write_all(s.as_bytes())
+    }
 }
+
+/// *Unbuffered* standard error singleton
+pub struct Stderr;
 
 impl Stderr {
     const FILENO: c_uint = 2;
-
-    /// Creates an instance of this singleton
-    ///
-    /// This constructor only returns `Some` the *first* time it's called
-    pub fn take_once() -> Option<Self> {
-        static ONCE: AtomicBool = AtomicBool::new(false);
-
-        // NOTE(Ordering) we are dealing with a single core so this out to be OK for now
-        if ONCE
-            .compare_exchange_weak(false, true, Ordering::Relaxed, Ordering::Relaxed)
-            .is_ok()
-        {
-            Some(Stderr { _private: () })
-        } else {
-            None
-        }
-    }
-
-    /// Borrows the singleton without performing any synchronization
-    pub unsafe fn borrow_unchecked<R>(f: impl FnOnce(&Self) -> R) -> R {
-        f(&Stderr { _private: () })
-    }
 
     /// Write a buffer into this writer, returning how many bytes were written.
     pub fn write(&self, buf: &[u8]) -> Result<usize, Error> {
@@ -105,6 +65,14 @@ impl Stderr {
 }
 
 impl ufmt::uWrite for &'_ Stderr {
+    type Error = Error;
+
+    fn write_str(&mut self, s: &str) -> Result<(), Error> {
+        self.write_all(s.as_bytes())
+    }
+}
+
+impl ufmt::uWrite for Stderr {
     type Error = Error;
 
     fn write_str(&mut self, s: &str) -> Result<(), Error> {

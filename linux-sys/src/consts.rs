@@ -74,6 +74,9 @@ pub const CLONE_SIGHAND: c_ulong = 0x00000800;
 /* 129. rt_sigqueueinfo */
 /// Signal issued by rt_sigqueueinfo
 pub const SI_QUEUE: c_int = -1;
+/// Sent by timer expiration
+#[cfg(not(target_arch = "mips"))]
+pub const SI_TIMER: c_int = -2;
 
 /* 14*. sched_* */
 /// Standard round-robin time-sharing policy
@@ -90,6 +93,22 @@ pub const SCHED_BATCH: c_int = 3;
 
 /// Very low priority background jobs
 pub const SCHED_IDLE: c_int = 5;
+
+/* 223. timer_settime */
+/// `timer_settime` uses absolute time
+pub const TIMER_ABSTIME: c_int = 1;
+
+/// Notify via signal
+pub const SIGEV_SIGNAL: c_int = 0;
+
+/// Other notification: meaningless
+pub const SIGEV_NONE: c_int = 1;
+
+/// Deliver via thread creation
+pub const SIGEV_THREAD: c_int = 2;
+
+/// Deliver to thread
+pub const SIGEV_THREAD_ID: c_int = 4;
 
 /* 22*. clock_* */
 // from include/uapi/linux/time.h

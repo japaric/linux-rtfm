@@ -16,3 +16,4 @@ linux-io = { path = "../linux-io" }
 panic-halt = "0.2.0"
 panic-stderr = { path = "../panic-stderr" }
 ufmt = "0.1.0-beta.4"
+ufmt-utils = "0.1.0-alpha.1"

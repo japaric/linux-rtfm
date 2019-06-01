@@ -1,35 +1,42 @@
+#![deny(rust_2018_compatibility)]
+#![deny(rust_2018_idioms)]
+#![deny(warnings)]
 #![feature(proc_macro_hygiene)]
 #![no_main]
 #![no_std]
 
-use linux_io::Stdout;
+use linux_io::{process, Stdout};
 use panic_exit as _;
 use ufmt::uwriteln;
+use ufmt_utils::{consts, Ignore, LineBuffered};
 
 #[rtfm::app]
 const APP: () = {
-    static STDOUT: Stdout = ();
     static mut SHARED: u128 = 0;
 
     #[init(spawn = [foo])]
-    fn init(c: init::Context) -> init::LateResources {
-        let stdout = Stdout::take_once().unwrap_or_else(|| panic!());
+    fn init(c: init::Context) {
+        let mut stdout = LineBuffered::<_, consts::U100>::new(Ignore::new(Stdout));
 
         let rsp = &mut 0; // snapshot of the stack pointer
-        uwriteln!(&mut &stdout, "A(%rsp={:?})", rsp as *mut _).ok();
+        uwriteln!(&mut stdout, "A(%rsp={:?})", rsp as *mut _).ok();
 
         c.spawn.foo().ok();
-
-        init::LateResources { STDOUT: stdout }
     }
 
-    #[task(priority = 1, resources = [STDOUT, SHARED], spawn = [bar, baz])]
-    fn foo(c: foo::Context) {
-        let (mut stdout, mut shared, spawn) = (c.resources.STDOUT, c.resources.SHARED, c.spawn);
+    #[idle]
+    fn idle(_: idle::Context) -> ! {
+        process::exit(0);
+    }
+
+    #[task(priority = 1, resources = [SHARED], spawn = [bar, baz])]
+    fn foo(mut c: foo::Context) {
+        let mut stdout = LineBuffered::<_, consts::U100>::new(Ignore::new(Stdout));
 
         uwriteln!(&mut stdout, "B(%rsp={:?})", &mut 0 as *mut _).ok();
 
-        shared.lock(|shared| {
+        let spawn = c.spawn;
+        c.resources.SHARED.lock(|shared| {
             *shared += 1;
 
             spawn.bar().ok();
@@ -42,12 +49,14 @@ const APP: () = {
         uwriteln!(&mut stdout, "F").ok();
     }
 
-    #[task(priority = 2, resources = [STDOUT, SHARED])]
-    fn bar(mut c: bar::Context) {
+    #[task(priority = 2, resources = [SHARED])]
+    fn bar(c: bar::Context) {
+        let mut stdout = LineBuffered::<_, consts::U100>::new(Ignore::new(Stdout));
+
         *c.resources.SHARED += 1;
 
         uwriteln!(
-            &mut c.resources.STDOUT,
+            &mut stdout,
             "E(%rsp={:?}, SHARED={})",
             &mut 0 as *mut _,
             *c.resources.SHARED as u64,
@@ -55,8 +64,10 @@ const APP: () = {
         .ok();
     }
 
-    #[task(priority = 3, resources = [STDOUT])]
-    fn baz(mut c: baz::Context) {
-        uwriteln!(&mut c.resources.STDOUT, "D(%rsp={:?})", &mut 0 as *mut _).ok();
+    #[task(priority = 3)]
+    fn baz(_: baz::Context) {
+        let mut stdout = LineBuffered::<_, consts::U100>::new(Ignore::new(Stdout));
+
+        uwriteln!(&mut stdout, "D(%rsp={:?})", &mut 0 as *mut _).ok();
     }
 };

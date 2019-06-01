@@ -12,6 +12,7 @@ use linux_io::Stdout;
 use linux_sys::{sigaction, sighandler_t, siginfo_t, SIGRTMIN};
 use panic_stderr as _;
 use ufmt::uwriteln;
+use ufmt_utils::{consts, Ignore, LineBuffered};
 
 #[linux_rt::entry]
 fn main() {
@@ -73,70 +74,64 @@ fn main() {
 
         // `p2` should run at this point
 
-        Stdout::borrow_unchecked(|mut stdout| {
-            uwriteln!(&mut stdout, "returned from signal handlers").ok();
-        });
+        Stdout.write(b"returned from signal handlers\n").ok();
     }
 }
 
 extern "C" fn p1(sig: i32, si: &mut siginfo_t, _: *mut c_void) {
-    unsafe {
-        Stdout::borrow_unchecked(|mut stdout| {
-            let sp = &mut 0;
-            uwriteln!(
-                &mut stdout,
-                "p1(sig={}, si={}, sp={:?})",
-                sig,
-                si.si_value,
-                sp as *mut i32,
-            )
-            .ok();
-        });
-    }
+    let mut stdout = LineBuffered::<_, consts::U100>::new(Ignore::new(Stdout));
+
+    let sp = &mut 0;
+    uwriteln!(
+        &mut stdout,
+        "p1(sig={}, si={}, sp={:?})",
+        sig,
+        si.si_value,
+        sp as *mut i32,
+    )
+    .ok();
 }
 
 extern "C" fn p2(sig: i32, si: &mut siginfo_t, _: *mut c_void) {
+    let mut stdout = LineBuffered::<_, consts::U100>::new(Ignore::new(Stdout));
+
+    let sp = &mut 0;
+    uwriteln!(
+        &mut stdout,
+        "p2(sig={}, si={}, sp={:?})",
+        sig,
+        si.si_value,
+        sp as *mut i32,
+    )
+    .ok();
+
     unsafe {
-        Stdout::borrow_unchecked(|mut stdout| {
-            let sp = &mut 0;
-            uwriteln!(
-                &mut stdout,
-                "p2(sig={}, si={}, sp={:?})",
-                sig,
-                si.si_value,
-                sp as *mut i32,
-            )
-            .ok();
+        // raise the third (lowest priority) RT signal
+        let tgid = linux_sys::getpid();
+        let tid = tgid;
+        si.si_value += 1;
+        linux_sys::rt_tgsigqueueinfo(tgid, tid, SIGRTMIN + 2, &si).unwrap_or_else(|_| panic!());
 
-            // raise the third (lowest priority) RT signal
-            let tgid = linux_sys::getpid();
-            let tid = tgid;
-            si.si_value += 1;
-            linux_sys::rt_tgsigqueueinfo(tgid, tid, SIGRTMIN + 2, &si).unwrap_or_else(|_| panic!());
+        uwriteln!(&mut stdout, "after raise(SIGRTMIN+2)").ok();
 
-            uwriteln!(&mut stdout, "after raise(SIGRTMIN+2)").ok();
+        // raise the first (highest priority) RT signal
+        si.si_value += 1;
+        linux_sys::rt_tgsigqueueinfo(tgid, tid, SIGRTMIN, &si).unwrap_or_else(|_| panic!());
 
-            // raise the first (highest priority) RT signal
-            si.si_value += 1;
-            linux_sys::rt_tgsigqueueinfo(tgid, tid, SIGRTMIN, &si).unwrap_or_else(|_| panic!());
-
-            uwriteln!(&mut stdout, "after raise(SIGRTMIN)").ok();
-        });
+        uwriteln!(&mut stdout, "after raise(SIGRTMIN)").ok();
     }
 }
 
 extern "C" fn p3(sig: i32, si: &mut siginfo_t, _: *mut c_void) {
-    unsafe {
-        Stdout::borrow_unchecked(|mut stdout| {
-            let sp = &mut 0;
-            uwriteln!(
-                &mut stdout,
-                "p3(sig={}, si={}, sp={:?})",
-                sig,
-                si.si_value,
-                sp as *mut i32,
-            )
-            .ok();
-        });
-    }
+    let mut stdout = LineBuffered::<_, consts::U100>::new(Ignore::new(Stdout));
+
+    let sp = &mut 0;
+    uwriteln!(
+        &mut stdout,
+        "p3(sig={}, si={}, sp={:?})",
+        sig,
+        si.si_value,
+        sp as *mut i32,
+    )
+    .ok();
 }
