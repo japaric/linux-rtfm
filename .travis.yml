@@ -1,0 +1,25 @@
+language: rust
+rust: nightly
+
+before_install:
+  - set -e
+
+script:
+  - cargo check --examples
+
+after_script: set +e
+
+cache: cargo
+
+before_cache:
+  - chmod -R a+r $HOME/.cargo;
+
+branches:
+  only:
+    - master
+    - staging
+    - trying
+
+notifications:
+  email:
+    on_success: never

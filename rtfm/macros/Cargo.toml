@@ -12,6 +12,9 @@ proc-macro = true
 proc-macro2 = "0.4.30"
 quote = "0.6.12"
 
+[dependencies.rtfm-syntax]
+git = "https://github.com/japaric/rtfm-syntax"
+
 [dependencies.syn]
 version = "0.15.34"
 features = ["extra-traits", "full"]

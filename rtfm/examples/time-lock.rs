@@ -1,33 +1,31 @@
+#![deny(rust_2018_compatibility)]
+#![deny(rust_2018_idioms)]
+#![deny(warnings)]
 #![feature(proc_macro_hygiene)]
 #![no_main]
 #![no_std]
 
-use linux_io::Stdout;
+use linux_io::{process, time::Instant, Stdout};
 use panic_exit as _;
-use rtfm::Instant;
 use ufmt::uwriteln;
+use ufmt_utils::{consts, Ignore, LineBuffered};
 
 #[rtfm::app]
 const APP: () = {
-    static STDOUT: Stdout = ();
     static mut SHARED: u128 = 0;
 
     #[init(spawn = [foo])]
-    fn init(c: init::Context) -> init::LateResources {
-        let stdout = Stdout::take_once().unwrap_or_else(|| panic!());
-
-        c.spawn.foo().unwrap_or_else(|_| panic!());
-
-        init::LateResources { STDOUT: stdout }
+    fn init(c: init::Context) {
+        c.spawn.foo().unwrap();
     }
 
-    #[task(priority = 1, resources = [STDOUT, SHARED])]
+    #[task(priority = 1, resources = [SHARED])]
     fn foo(mut c: foo::Context) {
         let before = Instant::now();
         let inside = c.resources.SHARED.lock(|_shared| Instant::now());
         let after = Instant::now();
 
-        print(c.resources.STDOUT, before, inside, after);
+        print(before, inside, after);
     }
 
     #[task(priority = 2, resources = [SHARED])]
@@ -35,7 +33,9 @@ const APP: () = {
 };
 
 #[inline(never)]
-fn print(mut stdout: &Stdout, before: Instant, inside: Instant, after: Instant) {
+fn print(before: Instant, inside: Instant, after: Instant) {
+    let mut stdout = LineBuffered::<_, consts::U100>::new(Ignore::new(Stdout));
+
     // samples 32768
     // quartiles [526.0, 540.0, 563.0]
     // extremes [489.0, 31813.0]
@@ -47,4 +47,6 @@ fn print(mut stdout: &Stdout, before: Instant, inside: Instant, after: Instant) 
         after.saturating_duration_since(inside).subsec_nanos(),
     )
     .ok();
+
+    process::exit(0);
 }

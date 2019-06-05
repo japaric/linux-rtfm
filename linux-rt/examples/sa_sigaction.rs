@@ -12,6 +12,7 @@ use linux_io::{Stderr, Stdout};
 use linux_sys::{sigaction, sighandler_t, siginfo_t, SIGRTMIN};
 use panic_stderr as _;
 use ufmt::uwriteln;
+use ufmt_utils::{consts, Ignore, LineBuffered};
 
 #[linux_rt::entry]
 fn main() {
@@ -46,14 +47,12 @@ fn main() {
 
         // `sigaction` should run at this point
 
-        if let Some(mut stderr) = Stderr::take_once().as_ref() {
-            uwriteln!(&mut stderr, "returned from handler").ok();
-        }
+        Stderr.write(b"returned from handler\n").ok();
     }
 }
 
 extern "C" fn sigaction(sig: i32, si: &mut siginfo_t, _: *mut c_void) {
-    if let Some(mut stdout) = Stdout::take_once().as_ref() {
-        uwriteln!(&mut stdout, "handler(sig={}, si={:#?})", sig, si).ok();
-    }
+    let mut stdout = LineBuffered::<_, consts::U100>::new(Ignore::new(Stdout));
+
+    uwriteln!(&mut stdout, "handler(sig={}, si={:#?})", sig, si).ok();
 }

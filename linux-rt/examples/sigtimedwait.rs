@@ -1,7 +1,6 @@
 #![deny(rust_2018_compatibility)]
 #![deny(rust_2018_idioms)]
 #![deny(warnings)]
-#![feature(proc_macro_hygiene)]
 #![no_main]
 #![no_std]
 

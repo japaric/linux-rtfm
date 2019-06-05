@@ -5,7 +5,6 @@
 #![deny(rust_2018_idioms)]
 #![deny(warnings)]
 #![feature(global_asm)]
-#![feature(maybe_uninit)]
 #![feature(proc_macro_hygiene)]
 #![no_std]
 
@@ -17,6 +16,7 @@ mod types;
 use core::{
     hint,
     mem::{self, MaybeUninit},
+    ptr,
 };
 
 pub use cty;
@@ -127,6 +127,20 @@ pub unsafe fn rt_sigprocmask(
     })
 }
 
+// NR = 24
+/// Yield the processor
+///
+/// See `man 2 sched_yield` for more details
+///
+/// Source: https://github.com/torvalds/linux/blob/v5.0/kernel/core.c#L4944
+///
+/// C signature: `int sched_yield(void)`
+pub fn sched_yield() {
+    unsafe {
+        syscall!(SCHED_YIELD);
+    }
+}
+
 // NR = 34
 /// Wait for a signal
 ///
@@ -189,6 +203,7 @@ pub unsafe fn clone(
     .map(|ret| ret as pid_t)
 }
 
+// NR = 56
 /// Create a child process -- interface simplified for the x86_64 architecture
 ///
 /// See `man 2 clone` for more details
@@ -265,6 +280,20 @@ pub unsafe fn exit(error_code: u8) -> ! {
     syscall!(EXIT, error_code as c_int);
 
     hint::unreachable_unchecked()
+}
+
+// NR = 62
+/// Send signal to a process
+///
+/// See `man 2 kill` for more details
+///
+/// Source: https://github.com/torvalds/linux/blob/v5.0/kernel/signal.c#3570
+///
+/// C signature: `int kill(pid_t pid, int sig)`
+pub unsafe fn kill(pid: pid_t, sig: c_int) -> Result<(), Error> {
+    check!(syscall!(KILL, pid, sig)).map(|res| {
+        debug_assert_eq!(res, 0);
+    })
 }
 
 // NR = 127
@@ -508,19 +537,72 @@ pub unsafe fn sched_getaffinity(pid: pid_t, mask: &mut [c_ulong; 8]) -> Result<&
     })
 }
 
-// NR = 231
-/// Exit all threads in a process
+// NR = 222
+/// Create a POSIX per-process timer
 ///
-/// See `man 2 exit_group` for more details
+/// See `man 2 timer_create` for more details
 ///
-/// Source: https://github.com/torvalds/linux/blob/v5.0/kernel/sched/exit.c#988
+/// Source: https://github.com/torvalds/linux/blob/v5.0/kernel/time/posix-timers.c#551
 ///
-/// C signature: `int exit_group(int error_code)`
-pub fn exit_group(error_code: u8) -> ! {
+/// C signature:
+///
+/// ```
+/// int timer_create(
+///     clockid_t which_clock,
+///     struct sigevent *timer_event_spec,
+///     timer_t *created_timer_id,
+/// )
+/// ```
+pub fn timer_create(which_clock: clockid_t, timer_event_spec: &sigevent) -> Result<timer_t, Error> {
     unsafe {
-        syscall!(EXIT_GROUP, error_code as c_int);
+        let mut timer = MaybeUninit::uninit();
+        check!(syscall!(
+            TIMER_CREATE,
+            which_clock,
+            timer_event_spec as *const sigevent,
+            timer.as_mut_ptr()
+        ))
+        .map(move |ret| {
+            debug_assert_eq!(ret, 0);
+            timer.assume_init()
+        })
+    }
+}
 
-        hint::unreachable_unchecked()
+// NR = 223
+/// Arm / disarm a POSIX per-process timer
+///
+/// See `man 2 timer_settime` for more details
+///
+/// Source: https://github.com/torvalds/linux/blob/v5.0/kernel/time/posix-timers.c#551
+///
+/// C signature:
+///
+/// ```
+/// int timer_settime(
+///     timer_t timer_id,
+///     int flags,
+///     const itimerspec* new_setting,
+///     itimerspec* old_setting,
+/// )
+/// ```
+pub fn timer_settime(
+    timer_id: timer_t,
+    flags: c_int,
+    new_setting: &itimerspec,
+    old_setting: *mut itimerspec,
+) -> Result<(), Error> {
+    unsafe {
+        check!(syscall!(
+            TIMER_SETTIME,
+            timer_id,
+            flags,
+            new_setting as *const itimerspec,
+            old_setting
+        ))
+        .map(move |ret| {
+            debug_assert_eq!(ret, 0);
+        })
     }
 }
 
@@ -560,6 +642,36 @@ pub fn clock_getres(which_clock: clockid_t) -> Result<timespec, Error> {
     }
 }
 
+// NR = 231
+/// Exit all threads in a process
+///
+/// See `man 2 exit_group` for more details
+///
+/// Source: https://github.com/torvalds/linux/blob/v5.0/kernel/sched/exit.c#988
+///
+/// C signature: `int exit_group(int error_code)`
+pub fn exit_group(error_code: u8) -> ! {
+    unsafe {
+        syscall!(EXIT_GROUP, error_code as c_int);
+
+        hint::unreachable_unchecked()
+    }
+}
+
+// NR = 234
+/// Send a signal to a thread
+///
+/// See `man 2 tgkill` for more details
+///
+/// Source: https://github.com/torvalds/linux/blob/v5.0/kernel/signal.c#3748
+///
+/// C signature: `int tgkill(pid_t tgid, pid_t pid, int sig)`
+pub unsafe fn tgkill(tgid: pid_t, pid: pid_t, sig: c_int) -> Result<(), Error> {
+    check!(syscall!(TGKILL, tgid, pid, sig)).map(|res| {
+        debug_assert_eq!(res, 0);
+    })
+}
+
 // NR = 297
 /// Queue a signal and data
 ///
@@ -586,6 +698,30 @@ pub unsafe fn rt_tgsigqueueinfo(
         uinfo as *const _
     ))
     .map(|ret| debug_assert_eq!(ret, 0))
+}
+
+// NR = 309
+/// Determine CPU and NUMA node on which the calling thread is running
+///
+/// See `man 2 getcpu` for more details
+///
+/// Source: https://github.com/torvalds/linux/blob/v5.0/kernel/sys.c#2502
+///
+/// C signature:
+///
+/// ```
+/// int getcpu(unsigned *cpup, unsigned *nodep, getcpu_cache *unused)
+/// ```
+pub fn getcpu(cpup: Option<&mut c_uint>, nodep: Option<&mut c_uint>) {
+    unsafe {
+        let res = syscall!(
+            GETCPU,
+            cpup.map(|x| x as *mut c_uint).unwrap_or(ptr::null_mut()),
+            nodep.map(|x| x as *mut c_uint).unwrap_or(ptr::null_mut())
+        );
+
+        debug_assert_eq!(res, 0);
+    }
 }
 
 /// Thin wrapper around Linux error codes

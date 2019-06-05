@@ -9,6 +9,7 @@ use linux_io::Stdout;
 use linux_sys::timespec;
 use panic_stderr as _;
 use ufmt::uwriteln;
+use ufmt_utils::{consts, Ignore, LineBuffered};
 
 #[linux_rt::entry]
 fn main() {
@@ -24,7 +25,7 @@ fn main() {
         // )
         // .unwrap_or_else(|_| panic!());
 
-        let mut stdout = &Stdout::take_once().unwrap();
+        let mut stdout = LineBuffered::<_, consts::U100>::new(Ignore::new(Stdout));
 
         // samples = 1,024
         // quartiles(SCHED_NORMAL) = [1,694; 16,449; 16,636]
@@ -62,7 +63,7 @@ fn time() -> [Option<timespec>; N] {
     let mut xs = [None; N];
 
     for x in xs.iter_mut() {
-        *x = linux_sys::clock_gettime(linux_sys::CLOCK_MONOTONIC_RAW).ok();
+        *x = linux_sys::clock_gettime(linux_sys::CLOCK_MONOTONIC).ok();
     }
 
     xs

@@ -7,31 +7,36 @@
 #![feature(proc_macro_hygiene)]
 #![no_std]
 
-use core::panic::PanicInfo;
+use core::{convert::Infallible, panic::PanicInfo};
 
+use heapless::{consts, String};
 use linux_io::Stderr;
-use ufmt::{uwrite, uwriteln};
+use ufmt::{uWrite, uwrite};
+
+struct Buffer(String<consts::U100>);
+
+impl uWrite for Buffer {
+    type Error = Infallible;
+
+    fn write_str(&mut self, s: &str) -> Result<(), Infallible> {
+        self.0.push_str(s).ok();
+        Ok(())
+    }
+}
 
 #[panic_handler]
 fn panic(info: &PanicInfo<'_>) -> ! {
-    unsafe {
-        Stderr::borrow_unchecked(|mut stderr| {
-            if uwrite!(&mut stderr, "panicked at").is_ok() {
-                if let Some(loc) = info.location() {
-                    uwriteln!(
-                        &mut stderr,
-                        " {}:{}:{}",
-                        loc.file(),
-                        loc.line(),
-                        loc.column()
-                    )
-                    .ok();
-                } else {
-                    uwrite!(&mut stderr, "\n").ok();
-                }
-            }
-        })
+    let mut buffer = Buffer(String::new());
+    buffer.0.push_str("panicked").ok();
+    if let Some(loc) = info.location() {
+        buffer.0.push_str(" at ").ok();
+        buffer.0.push_str(loc.file()).ok();
+        uwrite!(&mut buffer, ":{}:{}", loc.line(), loc.column()).ok();
     }
+    buffer.0.push_str("\n").ok();
+
+    // NOTE *single* `write` system call
+    Stderr.write(buffer.0.as_bytes()).ok();
 
     linux_sys::exit_group(101)
 }
