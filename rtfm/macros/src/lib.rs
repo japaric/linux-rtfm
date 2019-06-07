@@ -9,6 +9,7 @@ use std::{fs, path::Path};
 use rtfm_syntax::Settings;
 
 mod analyze;
+mod check;
 mod codegen;
 
 #[proc_macro_attribute]
@@ -26,10 +27,11 @@ pub fn app(args: TokenStream, input: TokenStream) -> TokenStream {
         Ok(x) => x,
     };
 
-    let analysis = match analyze::app(analysis, &app) {
-        Err(e) => return e.to_compile_error().into(),
-        Ok(x) => x,
-    };
+    if let Err(e) = check::app(&app, &analysis) {
+        return e.to_compile_error().into();
+    }
+
+    let analysis = analyze::app(analysis, &app);
 
     // Code generation
     let ts = codegen::app(&app, &analysis);
