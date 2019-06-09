@@ -47,7 +47,7 @@ pub fn codegen(
     ));
 
     if resources.0 {
-        let ident = util::resources_ident(ctxt);
+        let ident = util::resources_ident(ctxt, app);
         let lt = if resources.1 {
             lt = Some(quote!('a));
             Some(quote!('a))

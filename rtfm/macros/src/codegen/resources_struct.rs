@@ -137,7 +137,7 @@ pub fn codegen(
     }
 
     let doc = format!("Resources `{}` has access to", context.ident(app));
-    let ident = util::resources_ident(context);
+    let ident = util::resources_ident(context, app);
     let item = quote!(
         #[allow(non_snake_case)]
         #[doc = #doc]
