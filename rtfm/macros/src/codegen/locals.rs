@@ -25,6 +25,7 @@ pub fn codegen(
     let mut items = vec![];
     let mut names = vec![];
     let mut values = vec![];
+    let mut has_cfgs = false;
 
     for (name, local) in locals {
         let lt = if runs_once {
@@ -35,6 +36,8 @@ pub fn codegen(
         };
 
         let cfgs = &local.cfgs;
+        has_cfgs |= !cfgs.is_empty();
+
         let expr = &local.expr;
         let ty = &local.ty;
         fields.push(quote!(
@@ -52,7 +55,7 @@ pub fn codegen(
         names.push(name);
     }
 
-    if lt.is_some() {
+    if lt.is_some() && has_cfgs {
         fields.push(quote!(__marker__: core::marker::PhantomData<&'a mut ()>));
         values.push(quote!(__marker__: core::marker::PhantomData));
     }
