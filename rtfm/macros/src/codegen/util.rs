@@ -1,5 +1,4 @@
 use core::ops::Range;
-use std::borrow::Cow;
 
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
@@ -136,16 +135,14 @@ pub fn locals_ident(ctxt: Context, app: &App) -> Ident {
     Ident::new(&s, Span::call_site())
 }
 
-pub fn resources_ident(ctxt: Context) -> Ident {
-    let s = match ctxt {
-        Context::Init(..) => Cow::Borrowed("initResources"),
-        Context::Idle(..) => Cow::Borrowed("idleResources"),
-        Context::HardwareTask(ident) | Context::SoftwareTask(ident) => {
-            let mut s = ident.to_string();
-            s.push_str("Resources");
-            Cow::Owned(s)
-        }
+pub fn resources_ident(ctxt: Context, app: &App) -> Ident {
+    let mut s = match ctxt {
+        Context::Init(core) => app.inits[&core].name.to_string(),
+        Context::Idle(core) => app.idles[&core].name.to_string(),
+        Context::HardwareTask(ident) | Context::SoftwareTask(ident) => ident.to_string(),
     };
+
+    s.push_str("Resources");
 
     Ident::new(&s, Span::call_site())
 }

@@ -16,7 +16,7 @@ pub fn codegen(
     let mut const_app = vec![];
     let mut mod_resources = vec![];
 
-    for (name, res, expr) in app.resources() {
+    for (name, res, expr, loc) in app.resources(analysis) {
         let cfgs = &res.cfgs;
         let attrs = &res.attrs;
         let ty = &res.ty;
@@ -63,7 +63,7 @@ pub fn codegen(
                     }
                 ));
 
-                let range = analysis.signals[&analysis.locations[name].unwrap()].range();
+                let range = analysis.signals[&loc.core().unwrap()].range();
                 const_app.push(util::impl_mutex(
                     cfgs,
                     true,

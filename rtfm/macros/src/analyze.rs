@@ -1,16 +1,11 @@
 use core::ops::{self, Range};
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
 
-use proc_macro2::Span;
 use rtfm_syntax::{
     analyze::{self, Priority},
     ast::App,
     Core, P,
 };
-use syn::parse;
-
-// Linux 5.0 only supports 32 real time signals
-const THRESHOLD: u8 = 32;
 
 /// Signal number
 pub type Signal = u8;
@@ -29,7 +24,7 @@ impl ops::Deref for Analysis {
 }
 
 pub struct Signals {
-    pub map: HashMap<Priority, Signal>,
+    pub map: BTreeMap<Priority, Signal>,
     pub start: Signal,
 }
 
@@ -42,7 +37,7 @@ impl Signals {
 }
 
 // Assign a RT signal handler to each priority level
-pub fn app(parent: P<analyze::Analysis>, app: &App) -> parse::Result<P<Analysis>> {
+pub fn app(parent: P<analyze::Analysis>, app: &App) -> P<Analysis> {
     let mut rt = 0;
 
     let mut signals = BTreeMap::new();
@@ -66,18 +61,11 @@ pub fn app(parent: P<analyze::Analysis>, app: &App) -> parse::Result<P<Analysis>
             .rev()
             .cloned()
             .zip(rt..)
-            .collect::<HashMap<_, _>>();
+            .collect::<BTreeMap<_, _>>();
         let len = map.len();
         signals.insert(core, Signals { map, start: rt });
         rt += len as u8;
-
-        if rt > THRESHOLD {
-            return Err(parse::Error::new(
-                Span::call_site(),
-                "there are not enough real time signals to dispatch all tasks",
-            ));
-        }
     }
 
-    Ok(P::new(Analysis { parent, signals }))
+    P::new(Analysis { parent, signals })
 }

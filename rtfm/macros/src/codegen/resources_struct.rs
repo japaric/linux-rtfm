@@ -22,10 +22,13 @@ pub fn codegen(
 
     let mut fields = vec![];
     let mut values = vec![];
+    let mut has_cfgs = false;
     for name in resources {
         let (res, expr) = app.resource(name).expect("UNREACHABLE");
 
         let cfgs = &res.cfgs;
+        has_cfgs |= !cfgs.is_empty();
+
         let mut_ = res.mutability;
         let ty = &res.ty;
 
@@ -128,16 +131,18 @@ pub fn codegen(
         *needs_lt = true;
 
         // the struct could end up empty due to `cfg` leading to an error due to `'a` being unused
-        fields.push(quote!(
-            #[doc(hidden)]
-            pub __marker__: core::marker::PhantomData<&'a ()>
-        ));
+        if has_cfgs {
+            fields.push(quote!(
+                #[doc(hidden)]
+                pub __marker__: core::marker::PhantomData<&'a ()>
+            ));
 
-        values.push(quote!(__marker__: core::marker::PhantomData))
+            values.push(quote!(__marker__: core::marker::PhantomData))
+        }
     }
 
     let doc = format!("Resources `{}` has access to", context.ident(app));
-    let ident = util::resources_ident(context);
+    let ident = util::resources_ident(context, app);
     let item = quote!(
         #[allow(non_snake_case)]
         #[doc = #doc]
