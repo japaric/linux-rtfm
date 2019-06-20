@@ -740,7 +740,7 @@ impl Error {
 impl ufmt::uDebug for Error {
     fn fmt<W>(&self, f: &mut ufmt::Formatter<'_, W>) -> Result<(), W::Error>
     where
-        W: ufmt::uWrite,
+        W: ufmt::uWrite + ?Sized,
     {
         let e = match self.code {
             1 => "EPERM",
