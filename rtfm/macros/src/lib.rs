@@ -14,15 +14,11 @@ mod codegen;
 
 #[proc_macro_attribute]
 pub fn app(args: TokenStream, input: TokenStream) -> TokenStream {
-    let (app, analysis) = match rtfm_syntax::parse(
-        args,
-        input,
-        Settings {
-            parse_cores: true,
-            parse_schedule: true,
-            ..Settings::default()
-        },
-    ) {
+    let mut settings = Settings::default();
+    settings.parse_cores = true;
+    settings.parse_schedule = true;
+
+    let (app, analysis) = match rtfm_syntax::parse(args, input, settings) {
         Err(e) => return e.to_compile_error().into(),
         Ok(x) => x,
     };
