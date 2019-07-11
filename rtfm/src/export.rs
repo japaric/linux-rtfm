@@ -1,6 +1,6 @@
 use core::{
     cell::Cell,
-    mem,
+    mem::MaybeUninit,
     ops::Range,
     ptr,
     sync::atomic::{AtomicBool, AtomicI32, Ordering},
@@ -120,12 +120,8 @@ pub unsafe fn init_runtime(signo_max: Option<u8>) {
     // block all the used real-time signals; this is equivalent to `interrupt::disable`
     if let Some(signo) = signo_max {
         let mask = ((1 << (signo + 1)) - 1) << (SIGRTMIN - 1);
-        linux_sys::rt_sigprocmask(
-            linux_sys::SIG_BLOCK,
-            &mask,
-            ptr::null_mut(),
-        )
-        .unwrap_or_else(|_| fatal("error: couldn't change the signal mask\n"));
+        linux_sys::rt_sigprocmask(linux_sys::SIG_BLOCK, &mask, ptr::null_mut())
+            .unwrap_or_else(|_| fatal("error: couldn't change the signal mask\n"));
     }
 }
 
@@ -224,7 +220,7 @@ pub unsafe fn mask(Range { start, end }: Range<u8>, current: u8, ceiling: u8, bl
 }
 
 pub unsafe fn enqueue(tgid: i32, tid: Option<i32>, signo: u8, task: u8, index: u8) {
-    let mut si: siginfo_t = mem::uninitialized();
+    let mut si: siginfo_t = MaybeUninit::uninit().assume_init();
     si.si_code = linux_sys::SI_QUEUE;
     si.si_value = (usize::from(task) << 8) + usize::from(index);
 

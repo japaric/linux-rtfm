@@ -14,6 +14,7 @@ quote = "0.6.12"
 
 [dependencies.rtfm-syntax]
 git = "https://github.com/japaric/rtfm-syntax"
+rev = "f1848362d2055397124349228a7d79856d3fbc0e"
 
 [dependencies.syn]
 version = "0.15.34"
